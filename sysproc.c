@@ -93,10 +93,10 @@ sys_uptime(void)
 int
 sys_setpriority(void)
 {
-  int priority;
+  int /*pid,*/ priority;
 
-  if(argint(0, &priority) < 0)
+  if(/*argint(0, &pid) < 0 ||*/ argint(1, &priority) < 0)
     return -1;
-  setpriority(priority);
+  setpriority(/*pid,*/ priority);
   return 0;
 }

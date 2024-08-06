@@ -86,6 +86,7 @@ allocproc(void)
   return 0;
 
 found:
+  p->priority = 5;
   p->state = EMBRYO;
   p->pid = nextpid++;
 
@@ -196,6 +197,7 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+  np->priority = curproc->priority;
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
@@ -323,6 +325,7 @@ void
 scheduler(void)
 {
   struct proc *p;
+  struct proc* highestPriorityProc;
   struct cpu *c = mycpu();
   c->proc = 0;
 
@@ -332,14 +335,20 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    highestPriorityProc = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
+      if (!highestPriorityProc || p->priority > highestPriorityProc->priority)
+        highestPriorityProc = p;
+    }
+
+    if (highestPriorityProc) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      c->proc = p;
+      c->proc = p = highestPriorityProc;
       switchuvm(p);
       p->state = RUNNING;
 
@@ -534,15 +543,22 @@ procdump(void)
 }
 
 void
-setpriority(int priority)
+setpriority(/*int pid,*/ int priority)
 {
   struct proc *p = myproc();
 
-  if (priority < 1 || priority > 10) {
-    cprintf("out of bounds: priority must be an integer between 1 to 10\n");
-    return;
-  }
-  cprintf("Initial priority: %d\n", p->priority);
+  if (priority < 1 || priority > 10)
+    cprintf("out of bounds: priority must be from 1 to 10\n");
+
+  // acquire(&ptable.lock);
+  // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  //   if(p->pid == pid) {
+  //     p->priority = priority;
+  //     release(&ptable.lock);
+  //     return 0;
+  //   }
+  // }
+  // release(&ptable.lock);
   p->priority = priority;
-  cprintf("New priority: %d\n", p->priority);
+  yield();
 }

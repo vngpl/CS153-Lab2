@@ -7,6 +7,9 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define MIN_PRIORITY 1
+#define MAX_PRIORITY 10
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -197,9 +200,9 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
-  np->priority = curproc->priority;
   np->sz = curproc->sz;
   np->parent = curproc;
+  np->priority = curproc->priority;
   *np->tf = *curproc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
@@ -286,6 +289,8 @@ wait(void)
       if(p->parent != curproc)
         continue;
       havekids = 1;
+      if (p->priority < curproc->priority)
+        p->priority = curproc->priority;
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
@@ -344,6 +349,14 @@ scheduler(void)
         highestPriorityProc = p;
     }
 
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if (p == highestPriorityProc || p->state != RUNNABLE)
+        continue;
+
+      if (p->priority < MAX_PRIORITY)
+        p->priority++;
+    }
+
     if (highestPriorityProc) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -351,6 +364,9 @@ scheduler(void)
       c->proc = p = highestPriorityProc;
       switchuvm(p);
       p->state = RUNNING;
+
+      if (p->priority > MIN_PRIORITY)
+        p->priority--;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -547,8 +563,8 @@ setpriority(int priority)
 {
   struct proc *p = myproc();
 
-  if (priority < 1 || priority > 10)
-    cprintf("out of bounds: priority must be from 1 to 10\n");
+  if (priority < MIN_PRIORITY || priority > MAX_PRIORITY)
+    cprintf("out of bounds: priority must be from %d to %d\n", MIN_PRIORITY, MAX_PRIORITY);
 
   p->priority = priority;
   yield();

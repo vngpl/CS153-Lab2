@@ -543,22 +543,13 @@ procdump(void)
 }
 
 void
-setpriority(/*int pid,*/ int priority)
+setpriority(int priority)
 {
   struct proc *p = myproc();
 
   if (priority < 1 || priority > 10)
     cprintf("out of bounds: priority must be from 1 to 10\n");
 
-  // acquire(&ptable.lock);
-  // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-  //   if(p->pid == pid) {
-  //     p->priority = priority;
-  //     release(&ptable.lock);
-  //     return 0;
-  //   }
-  // }
-  // release(&ptable.lock);
   p->priority = priority;
   yield();
 }

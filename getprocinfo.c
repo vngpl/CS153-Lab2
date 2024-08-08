@@ -8,14 +8,13 @@ main(void) {
 
   if (!pid) {
     printf(1, "in child\n");
-    setpriority(11);
+    getprocinfo();
   }
   if (pid) {
     wait();
     printf(1, "in parent\n");
-    setpriority(9);
+    getprocinfo();
   }
-  
-  getprocinfo();
+
   exit();
 }

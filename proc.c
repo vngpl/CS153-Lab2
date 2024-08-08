@@ -569,3 +569,17 @@ setpriority(int priority)
   p->priority = priority;
   yield();
 }
+
+void
+getprocinfo(void)
+{
+  struct proc *p = myproc();
+
+  if (p) {
+    cprintf("Process ID: %d\n", p->pid);
+    cprintf("Arrival Time: %d\n", p->arrive_t);
+    cprintf("Turnaround Time: %d\n", p->turnaround_t);
+    cprintf("Burst Time: %d\n", p->burst_t);
+    cprintf("Waiting Time: %d\n", p->wait_t);
+  }
+}

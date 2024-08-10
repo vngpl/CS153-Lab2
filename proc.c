@@ -89,6 +89,8 @@ allocproc(void)
   return 0;
 
 found:
+  p->arrive_t = ticks;
+  p->burst_t = 0;
   p->priority = 5;
   p->state = EMBRYO;
   p->pid = nextpid++;
@@ -252,6 +254,11 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
+  uint end_t = ticks;
+  cprintf("End Time: %d\n", end_t);
+  cprintf("Turnaround Time: %d\n", end_t - curproc->arrive_t);
+  cprintf("Waiting Time: %d\n", (end_t - curproc->arrive_t) - curproc->burst_t);
+
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -339,8 +346,8 @@ scheduler(void)
     sti();
 
     // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
     highestPriorityProc = 0;
+    acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -365,12 +372,15 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
+      uint start_t = ticks;
+
       if (p->priority > MIN_PRIORITY)
         p->priority--;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
+      p->burst_t += ticks - start_t;
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
@@ -563,8 +573,10 @@ setpriority(int priority)
 {
   struct proc *p = myproc();
 
-  if (priority < MIN_PRIORITY || priority > MAX_PRIORITY)
+  if (priority < MIN_PRIORITY || priority > MAX_PRIORITY) {
     cprintf("out of bounds: priority must be from %d to %d\n", MIN_PRIORITY, MAX_PRIORITY);
+    return;
+  }
 
   p->priority = priority;
   yield();
@@ -575,11 +587,15 @@ getprocinfo(void)
 {
   struct proc *p = myproc();
 
-  if (p) {
-    cprintf("Process ID: %d\n", p->pid);
-    cprintf("Arrival Time: %d\n", p->arrive_t);
-    cprintf("Turnaround Time: %d\n", p->turnaround_t);
-    cprintf("Burst Time: %d\n", p->burst_t);
-    cprintf("Waiting Time: %d\n", p->wait_t);
+  if (!p) {
+    cprintf("error fetching process info\n");
+    return;
   }
+
+  cprintf("Process ID: %d\n", p->pid);
+  cprintf("Arrival Time: %d\n", p->arrive_t);
+  cprintf("Burst Time: %d\n", p->burst_t);
+  // cprintf("End Time: %d\n", end_t);
+  // cprintf("Turnaround Time: %d\n", end_t - p->arrive_t);
+  // cprintf("Waiting Time: %d\n", (end_t - p->arrive_t) - p->burst_t);
 }

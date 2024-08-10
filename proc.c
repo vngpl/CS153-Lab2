@@ -255,9 +255,14 @@ exit(void)
   curproc->cwd = 0;
 
   uint end_t = ticks;
-  cprintf("End Time: %d\n", end_t);
-  cprintf("Turnaround Time: %d\n", end_t - curproc->arrive_t);
-  cprintf("Waiting Time: %d\n", (end_t - curproc->arrive_t) - curproc->burst_t);
+  uint turnaround_t = end_t - curproc->arrive_t;
+  uint waiting_t = turnaround_t - curproc->burst_t;
+  cprintf("PID=%d finished! ", curproc->pid);
+  cprintf("Arrival=%d ", curproc->arrive_t);
+  cprintf("Finish=%d ", end_t);
+  cprintf("Burst=%d ", curproc->burst_t);
+  cprintf("Turnaround=%d ", turnaround_t);
+  cprintf("Wait=%d\n", waiting_t);
 
   acquire(&ptable.lock);
 
@@ -580,22 +585,4 @@ setpriority(int priority)
 
   p->priority = priority;
   yield();
-}
-
-void
-getprocinfo(void)
-{
-  struct proc *p = myproc();
-
-  if (!p) {
-    cprintf("error fetching process info\n");
-    return;
-  }
-
-  cprintf("Process ID: %d\n", p->pid);
-  cprintf("Arrival Time: %d\n", p->arrive_t);
-  cprintf("Burst Time: %d\n", p->burst_t);
-  // cprintf("End Time: %d\n", end_t);
-  // cprintf("Turnaround Time: %d\n", end_t - p->arrive_t);
-  // cprintf("Waiting Time: %d\n", (end_t - p->arrive_t) - p->burst_t);
 }

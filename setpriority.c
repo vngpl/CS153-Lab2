@@ -15,7 +15,6 @@ main(void) {
     printf(1, "in parent\n");
     setpriority(9);
   }
-  
-  getprocinfo();
+
   exit();
 }

@@ -101,9 +101,9 @@ sys_setpriority(void)
   return 0;
 }
 
-int
-sys_getprocinfo(void)
-{
-  getprocinfo();
-  return 0;
-}
+// int
+// sys_getprocinfo(void)
+// {
+//   getprocinfo();
+//   return 0;
+// }

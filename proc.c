@@ -381,29 +381,27 @@ scheduler(void)
         highestPriorityProc = p;
     }
 
-    if (numRunnable < 2)
-      goto skipUpdate;
+    if (numRunnable > 1) {
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if (p->state != RUNNABLE || p->pid <= 2)
+          continue;
 
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->state != RUNNABLE || p->pid <= 2)
-        continue;
-
-      if (p == highestPriorityProc && p->priority > MIN_PRIORITY) {
-        p->priority--;
-        // acquire(&printlock);
-        // cprintf("PID=%d priority was decreased to %d!\n", p->pid, p->priority);
-        // release(&printlock);
-      }
-
-      if (p != highestPriorityProc && p->priority < MAX_PRIORITY) {
-        p->priority++;
-        // acquire(&printlock);
-        // cprintf("PID=%d priority was increased to %d!\n", p->pid, p->priority);
-        // release(&printlock);
+        if (p == highestPriorityProc && p->priority > MIN_PRIORITY) {
+          p->priority--;
+          acquire(&printlock);
+          cprintf("PID=%d priority was decreased to %d!\n", p->pid, p->priority);
+          release(&printlock);
+        }
+        else if (p != highestPriorityProc && p->priority < MAX_PRIORITY) {
+          p->priority++;
+          acquire(&printlock);
+          cprintf("PID=%d priority was increased to %d!\n", p->pid, p->priority);
+          release(&printlock);
+        }
       }
     }
 
-    skipUpdate:
+
     if (highestPriorityProc) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -433,10 +431,16 @@ scheduler(void)
       c->proc = 0;
 
       prevHighestPriorityProc = highestPriorityProc;
+      // if (prevHighestPriorityProc->pid > 2) {
+      //   acquire(&printlock);
+      //   cprintf("PID=%d had priority=%d\n", prevHighestPriorityProc->pid, prevHighestPriorityProc->priority);
+      //   release(&printlock);
+      // }
     }
     release(&ptable.lock);
 
   }
+  (void)prevHighestPriorityProc;
 }
 
 // Enter scheduler.  Must hold only ptable.lock

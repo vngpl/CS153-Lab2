@@ -378,11 +378,10 @@ scheduler(void)
         highestPriorityProc = p;
     }
 
-    if (highestPriorityProc) {
-      acquire(&printlock);
-      if (highestPriorityProc->pid > 2)
+    if (highestPriorityProc && highestPriorityProc->pid > 2) {
+        acquire(&printlock);
         cprintf("PID=%d is scheduled!\n", highestPriorityProc->pid);
-      release(&printlock);
+        release(&printlock);
     }
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -620,6 +619,8 @@ setpriority(int priority)
   }
 
   p->priority = priority;
+  acquire(&printlock);
   cprintf("PID=%d priority set to %d, process yields\n", p->pid, p->priority);
+  release(&printlock);
   yield();
 }

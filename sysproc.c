@@ -100,10 +100,3 @@ sys_setpriority(void)
   setpriority(priority);
   return 0;
 }
-
-// int
-// sys_getprocinfo(void)
-// {
-//   getprocinfo();
-//   return 0;
-// }

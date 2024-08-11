@@ -8,6 +8,7 @@
 #include "spinlock.h"
 
 #define MIN_PRIORITY 1
+#define DEFAULT_PRIORITY 5
 #define MAX_PRIORITY 10
 
 struct {
@@ -15,6 +16,7 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+struct spinlock printlock;
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -27,6 +29,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&printlock, "printlock");
 }
 
 // Must be called with interrupts disabled
@@ -89,11 +92,16 @@ allocproc(void)
   return 0;
 
 found:
+  acquire(&tickslock);
   p->arrive_t = ticks;
+  release(&tickslock);
   p->burst_t = 0;
-  p->priority = 5;
+  p->priority = DEFAULT_PRIORITY;
   p->state = EMBRYO;
   p->pid = nextpid++;
+  if (p->pid > 2) {
+    cprintf("PID=%d arrival=%d\n", p->pid, p->arrive_t);
+  }
 
   release(&ptable.lock);
 
@@ -254,15 +262,21 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
+  acquire(&tickslock);
   uint end_t = ticks;
+  release(&tickslock);
+
   uint turnaround_t = end_t - curproc->arrive_t;
   uint waiting_t = turnaround_t - curproc->burst_t;
+
+  acquire(&printlock);
   cprintf("PID=%d finished! ", curproc->pid);
   cprintf("Arrival=%d ", curproc->arrive_t);
   cprintf("Finish=%d ", end_t);
   cprintf("Burst=%d ", curproc->burst_t);
   cprintf("Turnaround=%d ", turnaround_t);
   cprintf("Wait=%d\n", waiting_t);
+  release(&printlock);
 
   acquire(&ptable.lock);
 
@@ -345,28 +359,42 @@ scheduler(void)
   struct proc* highestPriorityProc;
   struct cpu *c = mycpu();
   c->proc = 0;
+  int numRunnable;
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
+    numRunnable = 0;
     highestPriorityProc = 0;
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+      numRunnable++;
 
       if (!highestPriorityProc || p->priority > highestPriorityProc->priority)
         highestPriorityProc = p;
+    }
+
+    if (highestPriorityProc) {
+      acquire(&printlock);
+      if (highestPriorityProc->pid > 2)
+        cprintf("PID=%d is scheduled!\n", highestPriorityProc->pid);
+      release(&printlock);
     }
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p == highestPriorityProc || p->state != RUNNABLE)
         continue;
 
-      if (p->priority < MAX_PRIORITY)
+      if (p->pid > 2 && p->priority < MAX_PRIORITY) {
         p->priority++;
+        acquire(&printlock);
+        cprintf("PID=%d priority increased to %d!\n", p->pid, p->priority);
+        release(&printlock);
+      }
     }
 
     if (highestPriorityProc) {
@@ -377,15 +405,23 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
+      acquire(&tickslock);
       uint start_t = ticks;
+      release(&tickslock);
 
-      if (p->priority > MIN_PRIORITY)
+      if (p->pid > 2 && numRunnable > 1 && p->priority > MIN_PRIORITY) {
         p->priority--;
+        acquire(&printlock);
+        cprintf("PID=%d priority decreased to %d!\n", p->pid, p->priority);
+        release(&printlock);
+      }
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
+      acquire(&tickslock);
       p->burst_t += ticks - start_t;
+      release(&tickslock);
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
@@ -584,5 +620,6 @@ setpriority(int priority)
   }
 
   p->priority = priority;
+  cprintf("PID=%d priority set to %d, process yields\n", p->pid, p->priority);
   yield();
 }

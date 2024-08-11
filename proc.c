@@ -100,7 +100,9 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   if (p->pid > 2) {
+    acquire(&printlock);
     cprintf("PID=%d arrival=%d\n", p->pid, p->arrive_t);
+    release(&printlock);
   }
 
   release(&ptable.lock);
@@ -357,6 +359,7 @@ scheduler(void)
 {
   struct proc *p;
   struct proc* highestPriorityProc;
+  struct proc* prevHighestPriorityProc = 0;
   struct cpu *c = mycpu();
   c->proc = 0;
   int numRunnable;
@@ -378,42 +381,46 @@ scheduler(void)
         highestPriorityProc = p;
     }
 
-    if (highestPriorityProc && highestPriorityProc->pid > 2) {
-        acquire(&printlock);
-        cprintf("PID=%d is scheduled!\n", highestPriorityProc->pid);
-        release(&printlock);
-    }
+    if (numRunnable < 2)
+      goto skipUpdate;
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p == highestPriorityProc || p->state != RUNNABLE)
+      if (p->state != RUNNABLE || p->pid <= 2)
         continue;
 
-      if (p->pid > 2 && p->priority < MAX_PRIORITY) {
+      if (p == highestPriorityProc && p->priority > MIN_PRIORITY) {
+        p->priority--;
+        // acquire(&printlock);
+        // cprintf("PID=%d priority was decreased to %d!\n", p->pid, p->priority);
+        // release(&printlock);
+      }
+
+      if (p != highestPriorityProc && p->priority < MAX_PRIORITY) {
         p->priority++;
-        acquire(&printlock);
-        cprintf("PID=%d priority increased to %d!\n", p->pid, p->priority);
-        release(&printlock);
+        // acquire(&printlock);
+        // cprintf("PID=%d priority was increased to %d!\n", p->pid, p->priority);
+        // release(&printlock);
       }
     }
 
+    skipUpdate:
     if (highestPriorityProc) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p = highestPriorityProc;
+      if (p->pid > 2 && highestPriorityProc != prevHighestPriorityProc) {
+      // if (p->pid > 2) {
+          acquire(&printlock);
+          cprintf("PID=%d is scheduled!\n", p->pid);
+          release(&printlock);
+      }
       switchuvm(p);
       p->state = RUNNING;
 
       acquire(&tickslock);
       uint start_t = ticks;
       release(&tickslock);
-
-      if (p->pid > 2 && numRunnable > 1 && p->priority > MIN_PRIORITY) {
-        p->priority--;
-        acquire(&printlock);
-        cprintf("PID=%d priority decreased to %d!\n", p->pid, p->priority);
-        release(&printlock);
-      }
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -424,6 +431,8 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+
+      prevHighestPriorityProc = highestPriorityProc;
     }
     release(&ptable.lock);
 
@@ -614,11 +623,15 @@ setpriority(int priority)
   struct proc *p = myproc();
 
   if (priority < MIN_PRIORITY || priority > MAX_PRIORITY) {
+    acquire(&printlock);
     cprintf("out of bounds: priority must be from %d to %d\n", MIN_PRIORITY, MAX_PRIORITY);
+    release(&printlock);
     return;
   }
 
+  acquire(&ptable.lock);
   p->priority = priority;
+  release(&ptable.lock);
   acquire(&printlock);
   cprintf("PID=%d priority set to %d, process yields\n", p->pid, p->priority);
   release(&printlock);

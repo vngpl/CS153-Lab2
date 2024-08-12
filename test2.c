@@ -4,15 +4,15 @@
 
 int
 main(void) {
-  int i, pid;
+  volatile int i, pid;
   volatile int sum = 0;
-  int priorities[] = {1, 3, 5, 7, 10};
+  volatile int priorities[] = {1, 10, 10};
 
-  for (i = 0; i < 5; i++) {
+  for (i = 0; i < 3; i++) {
     pid = fork();
     if (!pid) {
       setpriority(priorities[i]);
-      for (i = 0; i < 10000000; i++) {
+      for (i = 0; i < 10000; i++) {
         sum += i;
       }
       exit();

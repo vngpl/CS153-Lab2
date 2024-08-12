@@ -401,7 +401,6 @@ scheduler(void)
       }
     }
 
-
     if (highestPriorityProc) {
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -440,7 +439,6 @@ scheduler(void)
     release(&ptable.lock);
 
   }
-  (void)prevHighestPriorityProc;
 }
 
 // Enter scheduler.  Must hold only ptable.lock

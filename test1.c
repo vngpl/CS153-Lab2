@@ -4,7 +4,7 @@
 
 int
 main(void) {
-  int i, pid;
+  volatile int i, pid;
   volatile int sum = 0;
 
   pid = fork();
@@ -13,13 +13,14 @@ main(void) {
     for (i = 0; i < 10000000; i++) {
       sum += i;
     }
-    // exit();
   }
   if (pid) {
-    for (i = 0; i < 100000000; i++) {
+    setpriority(1);
+    for (i = 0; i < 10000000; i++) {
       sum += i;
     }
   }
 
+  wait();
   exit();
 }
